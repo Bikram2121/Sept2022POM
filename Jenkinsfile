@@ -1,56 +1,66 @@
-pipeline{
-    
+pipeline 
+{
     agent any
     
-    stages{
-        stage ("Build"){
-            steps{
-                echo("Build")
+    tools{
+    	maven 'maven'
+        }
+
+    stages 
+    {
+        stage('Build') 
+        {
+            steps 
+            {
+                 git 'https://github.com/jglick/simple-maven-project-with-tests.git'
+                 sh "mvn -Dmaven.test.failure.ignore=true clean package"
+            }
+            post 
+            {
+                success 
+                {
+                    junit '**/target/surefire-reports/TEST-*.xml'
+                    archiveArtifacts 'target/*.jar'
+                }
             }
         }
         
-        stage ("Run UTs"){
-            steps{
-                echo("Run UTs")
+        
+        stage('Regression Automation Test') {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                    git 'https://github.com/Bikram2121/Sept2022POM'
+                    sh "mvn clean install"
+                }
+            }
+        }
+                
+     
+        stage('Publish Allure Reports') {
+           steps {
+                script {
+                    allure([
+                        includeProperties: false,
+                        jdk: '',
+                        properties: [],
+                        reportBuildPolicy: 'ALWAYS',
+                        results: [[path: '/allure-results']]
+                    ])
+                }
             }
         }
         
-        stage ("Deploy to Dev"){
-            steps{
-                echo("Dev Deployment")
-            }
-        }
         
-        stage ("Deploy to QA"){
+        stage('Publish Extent Report'){
             steps{
-                echo("QA Deployment")
-            }
-        }
-        
-        stage ("Run Automation Reg Test"){
-            steps{
-                echo("Run Automation Reg Test")
-            }
-        }
-        
-        stage ("Deploy to the stage"){
-            steps{
-                echo("Stage Deployment")
-            }
-        }
-        
-        stage ("Deploy to the PROD"){
-            steps{
-                echo("PROD Deployment")
+                     publishHTML([allowMissing: false,
+                                  alwaysLinkToLastBuild: false, 
+                                  keepAll: false, 
+                                  reportDir: 'build', 
+                                  reportFiles: 'TestExecutionReport.html', 
+                                  reportName: 'HTML Extent Report', 
+                                  reportTitles: ''])
             }
         }
     }
 }
-
-
-
-
-
-
-
-
